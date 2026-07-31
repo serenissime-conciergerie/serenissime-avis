@@ -225,6 +225,12 @@ function normalizeNote(rating) {
   return rating > 5 ? +(rating / 2).toFixed(2) : rating;
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 const translationCache = {};
 
 async function translateText(text) {
@@ -251,7 +257,19 @@ async function translateProperty(idx) {
     const translated = await translateText(original);
     if (translated && translated.trim().toLowerCase() !== original.trim().toLowerCase()) {
       cell.dataset.translated = translated;
-      cell.innerHTML = '<span class="comment-body">' + translated + '</span> <a href="#" class="toggle-original" data-showing="translated" onclick="toggleOriginal(event, this)">voir l\'original</a>';
+      cell.innerHTML = '';
+      const body = document.createElement('span');
+      body.className = 'comment-body';
+      body.textContent = translated;
+      const link = document.createElement('a');
+      link.href = '#';
+      link.className = 'toggle-original';
+      link.dataset.showing = 'translated';
+      link.textContent = 'voir l\u2019original';
+      link.addEventListener('click', function(e) { toggleOriginal(e, link); });
+      cell.appendChild(body);
+      cell.appendChild(document.createTextNode(' '));
+      cell.appendChild(link);
     }
   }
 }
@@ -266,7 +284,7 @@ function toggleOriginal(e, link) {
     link.dataset.showing = 'original';
   } else {
     body.textContent = cell.dataset.translated;
-    link.textContent = "voir l'original";
+    link.textContent = 'voir l\u2019original';
     link.dataset.showing = 'translated';
   }
 }
@@ -345,7 +363,7 @@ function renderProperties(byProperty) {
         const note = normalizeNote(r.rating);
         const cell = v => (v != null ? normalizeNote(v) : '—');
         const commentRow = r.comments
-          ? \`<tr class="comment-row"><td colspan="8"><b>Commentaire :</b> <span class="comment-text" data-original="\${r.comments.replace(/"/g, '&quot;')}"><span class="comment-body">\${r.comments}</span></span></td></tr>\`
+          ? \`<tr class="comment-row"><td colspan="8"><b>Commentaire :</b> <span class="comment-text" data-original="\${escapeHtml(r.comments)}"><span class="comment-body">\${escapeHtml(r.comments)}</span></span></td></tr>\`
           : '';
         return \`<tr class="stay-row">
           <td>\${(r.created || '').substring(0,10)}</td>
