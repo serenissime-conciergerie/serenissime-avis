@@ -145,7 +145,8 @@ const HTML_PAGE = `<!DOCTYPE html>
     font-size: 0.88em;
     vertical-align: top;
   }
-  .stays-table tr:hover td { background: #fafafa; }
+  .stays-table tr:hover td { background: #efece6; }
+  .stay-row td { background: var(--gray-bg); }
   .source-tag {
     font-size: 0.72em;
     padding: 2px 7px;
@@ -163,6 +164,15 @@ const HTML_PAGE = `<!DOCTYPE html>
     font-size: 0.85em;
   }
   .comment-row td b { color: var(--bordeaux-dark); font-style: normal; }
+  .toggle-original {
+    font-size: 0.78em;
+    color: #999;
+    text-decoration: underline;
+    font-style: normal;
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+  .toggle-original:hover { color: var(--bordeaux); }
   .stay-row:not(:first-child) td { border-top: 2px solid #f0f0f0; }
   .property-meta .source-tag { font-size: 0.78em; padding: 4px 10px; }
   .stays-table td:nth-child(4), .stays-table td:nth-child(5),
@@ -213,6 +223,52 @@ function noteClass(note) {
 
 function normalizeNote(rating) {
   return rating > 5 ? +(rating / 2).toFixed(2) : rating;
+}
+
+const translationCache = {};
+
+async function translateText(text) {
+  if (translationCache[text]) return translationCache[text];
+  try {
+    const resp = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fr&dt=t&q=' + encodeURIComponent(text));
+    const data = await resp.json();
+    const translated = data[0].map(part => part[0]).join('');
+    translationCache[text] = translated;
+    return translated;
+  } catch (e) {
+    return null;
+  }
+}
+
+const translatedProperties = new Set();
+
+async function translateProperty(idx) {
+  if (translatedProperties.has(idx)) return;
+  translatedProperties.add(idx);
+  const cells = document.querySelectorAll('#table-' + idx + ' .comment-text');
+  for (const cell of cells) {
+    const original = cell.dataset.original;
+    const translated = await translateText(original);
+    if (translated && translated.trim().toLowerCase() !== original.trim().toLowerCase()) {
+      cell.dataset.translated = translated;
+      cell.innerHTML = '<span class="comment-body">' + translated + '</span> <a href="#" class="toggle-original" data-showing="translated" onclick="toggleOriginal(event, this)">voir l\'original</a>';
+    }
+  }
+}
+
+function toggleOriginal(e, link) {
+  e.preventDefault();
+  const cell = link.closest('.comment-text');
+  const body = cell.querySelector('.comment-body');
+  if (link.dataset.showing === 'translated') {
+    body.textContent = cell.dataset.original;
+    link.textContent = 'voir la traduction';
+    link.dataset.showing = 'original';
+  } else {
+    body.textContent = cell.dataset.translated;
+    link.textContent = "voir l'original";
+    link.dataset.showing = 'translated';
+  }
 }
 
 async function loadData() {
@@ -289,7 +345,7 @@ function renderProperties(byProperty) {
         const note = normalizeNote(r.rating);
         const cell = v => (v != null ? normalizeNote(v) : '—');
         const commentRow = r.comments
-          ? \`<tr class="comment-row"><td colspan="8"><b>Commentaire :</b> \${r.comments}</td></tr>\`
+          ? \`<tr class="comment-row"><td colspan="8"><b>Commentaire :</b> <span class="comment-text" data-original="\${r.comments.replace(/"/g, '&quot;')}"><span class="comment-body">\${r.comments}</span></span></td></tr>\`
           : '';
         return \`<tr class="stay-row">
           <td>\${(r.created || '').substring(0,10)}</td>
@@ -331,6 +387,7 @@ function renderProperties(byProperty) {
 function toggleProperty(idx) {
   document.getElementById('table-' + idx).classList.toggle('open');
   document.getElementById('chevron-' + idx).classList.toggle('open');
+  translateProperty(idx);
 }
 
 // Init
