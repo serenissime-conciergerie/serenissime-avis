@@ -155,8 +155,9 @@ const HTML_PAGE = `<!DOCTYPE html>
   .source-airbnb { background: #ffe4e9; color: #c81e5f; }
   .source-booking { background: #dceefb; color: #003b95; }
   .comment { color: #555; font-style: italic; max-width: 320px; }
-  .subnotes { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.8em; color: #777; }
-  .subnotes span b { color: var(--text); }
+  .stays-table td:nth-child(4), .stays-table td:nth-child(5),
+  .stays-table td:nth-child(6), .stays-table td:nth-child(7),
+  .stays-table td:nth-child(8) { text-align: center; color: #555; }
   #error { color: var(--bordeaux); text-align: center; padding: 40px; }
 </style>
 </head>
@@ -266,18 +267,16 @@ function renderProperties(byProperty) {
         const source = r.rating > 5 ? 'booking' : 'airbnb';
         const sourceLabel = source === 'booking' ? 'Booking.com' : 'Airbnb';
         const note = normalizeNote(r.rating);
-        const sub = [
-          ['Propreté', r.clean_rating],
-          ['Communication', r.communication_rating],
-          ['Emplacement', r.location_rating],
-          ['Valeur', r.value_rating],
-          ['Enregistrement', r.checkin_rating]
-        ].filter(x => x[1] != null);
+        const cell = v => (v != null ? normalizeNote(v) : '—');
         return \`<tr>
           <td>\${(r.created || '').substring(0,10)}</td>
           <td><span class="source-tag source-\${source}">\${sourceLabel}</span></td>
           <td><b>\${note}</b>/5</td>
-          <td><div class="subnotes">\${sub.map(s => \`<span>\${s[0]}: <b>\${s[1]}</b></span>\`).join('')}</div></td>
+          <td>\${cell(r.clean_rating)}</td>
+          <td>\${cell(r.communication_rating)}</td>
+          <td>\${cell(r.location_rating)}</td>
+          <td>\${cell(r.value_rating)}</td>
+          <td>\${cell(r.checkin_rating)}</td>
           <td class="comment">\${(r.comments || '').substring(0, 140)}</td>
         </tr>\`;
       }).join('');
@@ -293,7 +292,7 @@ function renderProperties(byProperty) {
           </div>
         </div>
         <table class="stays-table" id="table-\${idx}">
-          <thead><tr><th>Date</th><th>Plateforme</th><th>Note</th><th>Sous-notes</th><th>Commentaire</th></tr></thead>
+          <thead><tr><th>Date</th><th>Plateforme</th><th>Note</th><th>Propreté</th><th>Communication</th><th>Emplacement</th><th>Valeur</th><th>Enregist.</th><th>Commentaire</th></tr></thead>
           <tbody>\${rows}</tbody>
         </table>
       </div>
