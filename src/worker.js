@@ -223,7 +223,9 @@ async function loadData() {
 
     const byProperty = {};
     (revData.reviews || []).forEach(r => {
-      const name = idToName[r.listing_id] || ('Listing ' + r.listing_id);
+      const name = idToName[r.listing_id]
+        || idToName[r.parent_listing_id]
+        || ('Listing ' + r.listing_id + ' (non identifié)');
       if (!byProperty[name]) byProperty[name] = [];
       byProperty[name].push(r);
     });
