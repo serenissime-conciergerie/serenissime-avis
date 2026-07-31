@@ -154,7 +154,17 @@ const HTML_PAGE = `<!DOCTYPE html>
   }
   .source-airbnb { background: #ffe4e9; color: #c81e5f; }
   .source-booking { background: #dceefb; color: #003b95; }
-  .comment { color: #555; font-style: italic; max-width: 320px; }
+  .comment-row td {
+    background: var(--gray-bg);
+    font-style: italic;
+    color: #555;
+    padding: 10px 16px;
+    border-top: none;
+    font-size: 0.85em;
+  }
+  .comment-row td b { color: var(--bordeaux-dark); font-style: normal; }
+  .stay-row:not(:first-child) td { border-top: 2px solid #f0f0f0; }
+  .property-meta .source-tag { font-size: 0.78em; padding: 4px 10px; }
   .stays-table td:nth-child(4), .stays-table td:nth-child(5),
   .stays-table td:nth-child(6), .stays-table td:nth-child(7),
   .stays-table td:nth-child(8) { text-align: center; color: #555; }
@@ -246,10 +256,16 @@ async function loadData() {
 function renderGlobalStats(reviews) {
   const total = reviews.length;
   const avg = total ? (reviews.reduce((s, r) => s + normalizeNote(r.rating), 0) / total).toFixed(2) : '—';
+  const airbnb = reviews.filter(r => r.rating <= 5);
+  const booking = reviews.filter(r => r.rating > 5);
+  const avgAirbnb = airbnb.length ? (airbnb.reduce((s, r) => s + normalizeNote(r.rating), 0) / airbnb.length).toFixed(2) : '—';
+  const avgBooking = booking.length ? (booking.reduce((s, r) => s + normalizeNote(r.rating), 0) / booking.length).toFixed(2) : '—';
   const el = document.getElementById('globalStats');
   el.innerHTML = \`
     <div class="stat-card"><div class="value">\${total}</div><div class="label">Avis sur la période</div></div>
     <div class="stat-card"><div class="value">\${avg}</div><div class="label">Note moyenne globale /5</div></div>
+    <div class="stat-card"><div class="value">\${avgAirbnb}</div><div class="label">Airbnb (\${airbnb.length} avis)</div></div>
+    <div class="stat-card"><div class="value">\${avgBooking}</div><div class="label">Booking.com (\${booking.length} avis)</div></div>
   \`;
 }
 
@@ -257,7 +273,11 @@ function renderProperties(byProperty) {
   const el = document.getElementById('properties');
   const entries = Object.entries(byProperty).map(([name, reviews]) => {
     const avg = reviews.reduce((s, r) => s + normalizeNote(r.rating), 0) / reviews.length;
-    return { name, reviews, avg };
+    const airbnb = reviews.filter(r => r.rating <= 5);
+    const booking = reviews.filter(r => r.rating > 5);
+    const avgAirbnb = airbnb.length ? airbnb.reduce((s, r) => s + normalizeNote(r.rating), 0) / airbnb.length : null;
+    const avgBooking = booking.length ? booking.reduce((s, r) => s + normalizeNote(r.rating), 0) / booking.length : null;
+    return { name, reviews, avg, avgAirbnb, avgBooking, nbAirbnb: airbnb.length, nbBooking: booking.length };
   }).sort((a, b) => b.avg - a.avg);
 
   el.innerHTML = entries.map((p, idx) => {
@@ -268,7 +288,10 @@ function renderProperties(byProperty) {
         const sourceLabel = source === 'booking' ? 'Booking.com' : 'Airbnb';
         const note = normalizeNote(r.rating);
         const cell = v => (v != null ? normalizeNote(v) : '—');
-        return \`<tr>
+        const commentRow = r.comments
+          ? \`<tr class="comment-row"><td colspan="8"><b>Commentaire :</b> \${r.comments}</td></tr>\`
+          : '';
+        return \`<tr class="stay-row">
           <td>\${(r.created || '').substring(0,10)}</td>
           <td><span class="source-tag source-\${source}">\${sourceLabel}</span></td>
           <td><b>\${note}</b>/5</td>
@@ -277,22 +300,27 @@ function renderProperties(byProperty) {
           <td>\${cell(r.location_rating)}</td>
           <td>\${cell(r.value_rating)}</td>
           <td>\${cell(r.checkin_rating)}</td>
-          <td class="comment">\${(r.comments || '').substring(0, 140)}</td>
-        </tr>\`;
+        </tr>\${commentRow}\`;
       }).join('');
+
+    const subBadges = \`
+      \${p.avgAirbnb != null ? \`<span class="source-tag source-airbnb">Airbnb \${p.avgAirbnb.toFixed(2)} (\${p.nbAirbnb})</span>\` : ''}
+      \${p.avgBooking != null ? \`<span class="source-tag source-booking">Booking \${p.avgBooking.toFixed(2)} (\${p.nbBooking})</span>\` : ''}
+    \`;
 
     return \`
       <div class="property">
         <div class="property-header" onclick="toggleProperty(\${idx})">
           <div class="property-name">\${p.name}</div>
           <div class="property-meta">
+            \${subBadges}
             <span class="nb-avis">\${p.reviews.length} avis</span>
             <span class="badge-note \${noteClass(p.avg)}">\${p.avg.toFixed(2)} / 5</span>
             <span class="chevron" id="chevron-\${idx}">▶</span>
           </div>
         </div>
         <table class="stays-table" id="table-\${idx}">
-          <thead><tr><th>Date</th><th>Plateforme</th><th>Note</th><th>Propreté</th><th>Communication</th><th>Emplacement</th><th>Valeur</th><th>Enregist.</th><th>Commentaire</th></tr></thead>
+          <thead><tr><th>Date</th><th>Plateforme</th><th>Note</th><th>Propreté</th><th>Communication</th><th>Emplacement</th><th>Valeur</th><th>Enregist.</th></tr></thead>
           <tbody>\${rows}</tbody>
         </table>
       </div>
